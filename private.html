@@ -1,1 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Private Vault</title>
+    <style>
+        body { background: #000; color: #fff; padding: 20px; font-family: sans-serif; }
+        .back-btn { color: #ff4757; text-decoration: none; font-size: 1.2rem; }
+    </style>
+</head>
+<body>
+    <a href="index.html" class="back-btn">← Back to Public Feed</a>
+    <h1>🔒 Private Vault</h1>
+    <p>Sirf aapki secret photos yahan rahengi.</p>
+    
+    <!-- Private Upload Box -->
+    <div class="private-upload-box">
+        <input type="file" id="p_file" multiple>
+        <button onclick="uploadPrivate()">Upload to Vault</button>
+    </div>
+    
+    <div id="private_grid" style="display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; margin-top:20px;"></div>
 
+    <script>
+        // Logic: Is page par sirf wo items filter karke dikhana jinka flag 'isPrivate: true' hai
+        function renderPrivate() {
+            let store = JSON.parse(localStorage.getItem('zerogram_db'));
+            let grid = document.getElementById('private_grid');
+            grid.innerHTML = "";
+            store.items.filter(i => i.isPrivate).forEach(item => {
+                grid.innerHTML += `<img src="${item.url}" style="width:100%">`;
+            });
+        }
+        renderPrivate();
+    </script>
+</body>
+</html>
