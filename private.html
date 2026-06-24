@@ -1,36 +1,294 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Private Vault</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zerogram Private Vault</title>
     <style>
-        body { background: #000; color: #fff; padding: 20px; font-family: sans-serif; }
-        .back-btn { color: #ff4757; text-decoration: none; font-size: 1.2rem; }
+        body { font-family: '-apple-system', BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; background-color: #050505; color: #f5f5f5; margin: 0; padding: 0; min-height: 100vh; display: flex; flex-direction: column; align-items: center; }
+        .insta-wrapper { max-width: 935px; width: 100%; padding: 30px 20px; box-sizing: border-box; width: 100%; }
+        
+        /* LOCK SCREEN STYLES */
+        .lock-container { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; width: 100%; box-sizing: border-box; padding: 20px; }
+        .lock-box { background: #121212; border: 1px solid #262626; border-radius: 12px; padding: 35px; text-align: center; max-width: 400px; width: 100%; box-shadow: 0 10px 25px rgba(0,0,0,0.5); box-sizing: border-box; }
+        .lock-box h2 { margin-top: 0; color: #ff4757; margin-bottom: 20px; }
+        .pin-input { background: #000; border: 1px solid #363636; border-radius: 6px; padding: 12px; width: 100%; color: white; text-align: center; font-size: 1.5rem; letter-spacing: 5px; outline: none; margin-bottom: 15px; box-sizing: border-box; }
+        
+        /* VAULT STYLES */
+        .vault-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #262626; padding-bottom: 20px; margin-bottom: 20px; gap: 10px; }
+        .vault-header h1 { margin: 0; color: #ff4757; font-size: 1.8rem; display: flex; align-items: center; gap: 10px; }
+        
+        .btn-insta { background-color: #ff4757; color: white; border: none; padding: 10px 20px; font-size: 0.9rem; font-weight: 600; border-radius: 4px; cursor: pointer; text-align: center; }
+        .btn-insta:hover { background-color: #ff2e44; }
+        .btn-secondary-insta { background-color: #121212; color: #fff; border: 1px solid #363636; padding: 9px 16px; text-decoration: none; font-size: 0.9rem; font-weight: 600; border-radius: 4px; display: inline-block; }
+        .btn-secondary-insta:hover { background-color: #262626; }
+
+        .settings-panel { background: #121212; border: 1px solid #262626; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 15px; align-items: center; justify-content: space-between; }
+        .upload-box { background: #121212; border: 1px dashed #363636; padding: 25px; border-radius: 8px; margin-bottom: 30px; text-align: center; }
+        .file-input { background: #000; padding: 10px; border: 1px solid #262626; color: white; border-radius: 4px; margin-bottom: 10px; cursor: pointer; }
+
+        .progress-container { display: none; margin-top: 15px; background: #262626; border-radius: 4px; overflow: hidden; position: relative; height: 20px; }
+        .progress-bar-fill { background: linear-gradient(45deg, #ff4757, #ff8da1); width: 0%; height: 100%; transition: width 0.1s ease; }
+        .progress-text { position: absolute; top: 0; left: 50%; transform: translateX(-50%); font-size: 0.75rem; font-weight: bold; color: #fff; line-height: 20px; }
+
+        .grid-gallery-container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; width: 100%; }
+        .grid-item-card { display: flex; flex-direction: column; background: #121212; border: 1px solid #262626; border-radius: 4px; overflow: hidden; position: relative; }
+        .grid-item-box { position: relative; aspect-ratio: 1; background-color: #0a0a0f; overflow: hidden; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+        .grid-item-box img, .grid-item-box video { width: 100%; height: 100%; object-fit: cover; }
+        
+        .close-icon { position: absolute; top: 12px; right: 12px; background: rgba(255, 71, 87, 0.95); color: white; border: none; border-radius: 50%; width: 32px; height: 32px; font-weight: bold; cursor: pointer; z-index: 20; font-size: 1.2rem; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.5); }
+
+        .modal { display: none; position: fixed; z-index: 9999; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.95); align-items: center; justify-content: center; }
+        .modal-content { max-width: 85%; max-height: 85%; object-fit: contain; border-radius: 4px; }
+        .close-btn { position: absolute; top: 20px; right: 30px; color: #fff; font-size: 40px; font-weight: bold; cursor: pointer; }
+
+        @media (max-width: 768px) { .grid-gallery-container { grid-template-columns: repeat(3, 1fr); gap: 4px; } .settings-panel { flex-direction: column; align-items: stretch; } }
     </style>
 </head>
 <body>
-    <a href="index.html" class="back-btn">← Back to Public Feed</a>
-    <h1>🔒 Private Vault</h1>
-    <p>Sirf aapki secret photos yahan rahengi.</p>
-    
-    <!-- Private Upload Box -->
-    <div class="private-upload-box">
-        <input type="file" id="p_file" multiple>
-        <button onclick="uploadPrivate()">Upload to Vault</button>
+
+    <div id="lockScreen" class="lock-container">
+        <div class="lock-box">
+            <h2>🔒 Private Lock</h2>
+            <input type="password" id="pinInput" class="pin-input" placeholder="••••" maxlength="8">
+            <button class="btn-insta" style="width: 100%; margin-bottom: 15px;" onclick="verifyPin()">Unlock Vault</button>
+            <div style="display: flex; justify-content: space-between; font-size: 0.85rem;">
+                <a href="index.html" style="color: #8e8e8e; text-decoration: none;">← Exit</a>
+                <a href="#" onclick="forgetPassword()" style="color: #ff4757; text-decoration: none;">Forget Password?</a>
+            </div>
+        </div>
     </div>
-    
-    <div id="private_grid" style="display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; margin-top:20px;"></div>
+
+    <div class="insta-wrapper" id="vaultContent" style="display: none;">
+        <div class="vault-header">
+            <h1>🔒 Private Vault</h1>
+            <a href="index.html" class="btn-secondary-insta">← Back to Public</a>
+        </div>
+
+        <div class="settings-panel">
+            <span style="font-weight: 600; color: #a8a8a8;">Security Settings:</span>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <button class="btn-secondary-insta" style="padding: 6px 12px; font-size: 0.8rem;" onclick="changePassword()">⚙️ Change Password</button>
+                <button class="btn-secondary-insta" style="padding: 6px 12px; font-size: 0.8rem; border-color: #ff4757; color: #ff4757;" onclick="lockVaultInstant()">🔒 Lock Vault</button>
+            </div>
+        </div>
+
+        <div class="upload-box">
+            <form onsubmit="handlePrivateUpload(event)">
+                <input type="file" id="private_file_input" class="file-input" accept="image/*,video/*" multiple required><br>
+                <button type="submit" class="btn-insta" style="padding: 10px 25px;">Upload Privately</button>
+            </form>
+            <div class="progress-container" id="p_container">
+                <div class="progress-bar-fill" id="p_fill"></div>
+                <div class="progress-text" id="p_text">0%</div>
+            </div>
+        </div>
+
+        <div class="grid-gallery-container" id="private_grid_display"></div>
+    </div>
+
+    <div id="photoModal" class="modal" onclick="closeView()">
+        <span class="close-btn" onclick="closeView()">&times;</span>
+        <img class="modal-content" id="fullImage" style="display:none;" onclick="event.stopPropagation()">
+        <video class="modal-content" id="fullVideo" controls style="display:none;" onclick="event.stopPropagation()"></video>
+    </div>
 
     <script>
-        // Logic: Is page par sirf wo items filter karke dikhana jinka flag 'isPrivate: true' hai
-        function renderPrivate() {
-            let store = JSON.parse(localStorage.getItem('zerogram_db'));
-            let grid = document.getElementById('private_grid');
+        const BOT_TOKEN = "8877412628:AAHeZgC78XtddVqrg-Z75401IUCVRnQgH4c";
+        const CHANNEL_ID = "-1004438175078";
+        const RECOVERY_CODE = "2648"; // Security code for reset (Phone ends with 2648)
+
+        let store = JSON.parse(localStorage.getItem('zerogram_db')) || { folders: ["Main Gallery"], activeFolder: "Main Gallery", items: [] };
+        
+        // Pin configuration sync
+        if (!store.vaultPin) {
+            store.vaultPin = "1234"; // Default Pin Set
+            localStorage.setItem('zerogram_db', JSON.stringify(store));
+        }
+
+        // 🔒 PIN VERIFICATION SYSTEM
+        function verifyPin() {
+            const enteredPin = document.getElementById("pinInput").value;
+            if (enteredPin === store.vaultPin) {
+                document.getElementById("lockScreen").style.display = "none";
+                document.getElementById("vaultContent").style.display = "block";
+                document.getElementById("pinInput").value = "";
+                renderPrivateUI();
+            } else {
+                alert("Wrong PIN! Access Denied.");
+                document.getElementById("pinInput").value = "";
+            }
+        }
+
+        // ⚙️ CHANGE PASSWORD LOGIC
+        function changePassword() {
+            const current = prompt("Enter Current Password:");
+            if (current !== store.vaultPin) {
+                alert("Incorrect current password!");
+                return;
+            }
+            const newPin = prompt("Enter New Password (Numbers Only, Max 8 digits):");
+            if (!newPin || isNaN(newPin)) {
+                alert("Invalid input! Password not changed.");
+                return;
+            }
+            store.vaultPin = newPin.trim();
+            localStorage.setItem('zerogram_db', JSON.stringify(store));
+            alert("Password updated successfully! Re-locking vault.");
+            lockVaultInstant();
+        }
+
+        // 🔄 FORGET PASSWORD RECOVERY ENGINE
+        function forgetPassword() {
+            const check = prompt("Enter your 4-digit secret recovery code:");
+            if (check === RECOVERY_CODE) {
+                store.vaultPin = "1234";
+                localStorage.setItem('zerogram_db', JSON.stringify(store));
+                alert("Identity verified! Password reset to default: 1234");
+                document.getElementById("pinInput").value = "1234";
+            } else {
+                alert("Wrong verification code! Access denied.");
+            }
+        }
+
+        function lockVaultInstant() {
+            document.getElementById("vaultContent").style.display = "none";
+            document.getElementById("lockScreen").style.display = "flex";
+            document.getElementById("pinInput").value = "";
+        }
+
+        function saveAndRender() {
+            localStorage.setItem('zerogram_db', JSON.stringify(store));
+            renderPrivateUI();
+        }
+
+        function renderPrivateUI() {
+            const grid = document.getElementById("private_grid_display");
             grid.innerHTML = "";
-            store.items.filter(i => i.isPrivate).forEach(item => {
-                grid.innerHTML += `<img src="${item.url}" style="width:100%">`;
+            const privateItems = store.items.filter(item => item.isPrivate === true);
+
+            if (privateItems.length === 0) {
+                grid.innerHTML = `<div style="grid-column: 1 / span 3; text-align:center; padding:40px; color:#8e8e8e;">No Private Posts Yet.</div>`;
+                return;
+            }
+
+            privateItems.forEach(item => {
+                const isVideo = item.url.toLowerCase().match(/\.(mp4|webm|mov|mkv|ogg)/) || item.isVideo;
+                let mediaTag = isVideo ? `<video src="${item.url}" muted loop playsinline></video>` : `<img src="${item.url}">`;
+
+                grid.innerHTML += `
+                    <div class="grid-item-card">
+                        <button class="close-icon" onclick="deletePrivateItem(event, '${item.id}')">&times;</button>
+                        <div class="grid-item-box" onpointerdown="openView('${item.url}', ${isVideo})">${mediaTag}</div>
+                    </div>`;
             });
         }
-        renderPrivate();
+
+        function openView(url, isVideo) {
+            const modal = document.getElementById("photoModal");
+            const imgModal = document.getElementById("fullImage");
+            const videoModal = document.getElementById("fullVideo");
+            if (isVideo) {
+                imgModal.style.display = "none"; videoModal.style.display = "block"; videoModal.src = url; videoModal.play();
+            } else {
+                videoModal.style.display = "none"; videoModal.pause(); imgModal.style.display = "block"; imgModal.src = url;
+            }
+            modal.style.display = "flex";
+        }
+
+        function closeView() {
+            document.getElementById("fullVideo").pause();
+            document.getElementById("photoModal").style.display = "none";
+        }
+
+        async function handlePrivateUpload(event) {
+            event.preventDefault();
+            const fileInput = document.getElementById("private_file_input");
+            if (!fileInput.files.length) return;
+
+            const files = Array.from(fileInput.files);
+            const total = files.length;
+            const pContainer = document.getElementById("p_container");
+            const pFill = document.getElementById("p_fill");
+            const pText = document.getElementById("p_text");
+
+            pContainer.style.display = "block";
+
+            for (let i = 0; i < total; i++) {
+                const file = files[i];
+                pText.innerText = `Vaulting ${i + 1}/${total} (${file.name})`;
+                try {
+                    const directUrl = await uploadToTelegram(file, (percent) => {
+                        let overall = Math.round(((i / total) * 100) + (percent / total));
+                        pFill.style.width = overall + "%";
+                    });
+
+                    if (directUrl) {
+                        store.items.unshift({
+                            id: 'item_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+                            folder: "Private Vault",
+                            url: directUrl,
+                            isVideo: file.type.startsWith('video/'),
+                            isPrivate: true,
+                            comments: []
+                        });
+                    }
+                } catch (err) {
+                    alert(`Upload Failed: ${file.name}`);
+                }
+            }
+            pContainer.style.display = "none";
+            fileInput.value = "";
+            saveAndRender();
+        }
+
+        function uploadToTelegram(file, progressCallback) {
+            return new Promise((resolve, reject) => {
+                const isVideo = file.type.startsWith('video/');
+                const method = isVideo ? "sendVideo" : "sendPhoto";
+                const url = `https://api.telegram.org/bot${BOT_TOKEN}/${method}`;
+
+                const xhr = new XMLHttpRequest();
+                const formData = new FormData();
+                formData.append("chat_id", CHANNEL_ID);
+                formData.append(isVideo ? "video" : "photo", file);
+
+                xhr.upload.addEventListener("progress", (e) => {
+                    if (e.lengthComputable) progressCallback(Math.round((e.loaded / e.total) * 100));
+                });
+
+                xhr.onreadystatechange = () => {
+                    if (xhr.readyState === 4) {
+                        if (xhr.status === 200) {
+                            const res = JSON.parse(xhr.responseText);
+                            if (res.ok) {
+                                const fileId = isVideo ? res.result.video.file_id : res.result.photo[res.result.photo.length - 1].file_id;
+                                fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getFile?file_id=${fileId}`)
+                                    .then(r => r.json())
+                                    .then(fileInfo => {
+                                        if (fileInfo.ok) resolve(`https://api.telegram.org/file/bot${BOT_TOKEN}/${fileInfo.result.file_path}`);
+                                        else resolve(null);
+                                    }).catch(() => resolve(null));
+                            } else { resolve(null); }
+                        } else { reject(xhr.statusText); }
+                    }
+                };
+                xhr.open("POST", url, true); xhr.send(formData);
+            });
+        }
+
+        function deletePrivateItem(event, id) {
+            event.stopPropagation();
+            if (confirm("Delete from private vault permanently?")) {
+                store.items = store.items.filter(item => item.id !== id);
+                saveAndRender();
+            }
+        }
+
+        // Support direct unlock via pressing Enter key
+        document.getElementById("pinInput").addEventListener("keypress", function(event) {
+            if (event.key === "Enter") { verifyPin(); }
+        });
     </script>
 </body>
 </html>
