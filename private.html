@@ -96,17 +96,15 @@
     <script>
         const BOT_TOKEN = "8877412628:AAHeZgC78XtddVqrg-Z75401IUCVRnQgH4c";
         const CHANNEL_ID = "-1004438175078";
-        const RECOVERY_CODE = "2648"; // Security code for reset (Phone ends with 2648)
+        const RECOVERY_CODE = "2648"; // Security Verification Code
 
         let store = JSON.parse(localStorage.getItem('zerogram_db')) || { folders: ["Main Gallery"], activeFolder: "Main Gallery", items: [] };
         
-        // Pin configuration sync
         if (!store.vaultPin) {
-            store.vaultPin = "1234"; // Default Pin Set
+            store.vaultPin = "1234"; // Default PIN
             localStorage.setItem('zerogram_db', JSON.stringify(store));
         }
 
-        // 🔒 PIN VERIFICATION SYSTEM
         function verifyPin() {
             const enteredPin = document.getElementById("pinInput").value;
             if (enteredPin === store.vaultPin) {
@@ -120,7 +118,6 @@
             }
         }
 
-        // ⚙️ CHANGE PASSWORD LOGIC
         function changePassword() {
             const current = prompt("Enter Current Password:");
             if (current !== store.vaultPin) {
@@ -138,7 +135,6 @@
             lockVaultInstant();
         }
 
-        // 🔄 FORGET PASSWORD RECOVERY ENGINE
         function forgetPassword() {
             const check = prompt("Enter your 4-digit secret recovery code:");
             if (check === RECOVERY_CODE) {
@@ -229,7 +225,7 @@
                             folder: "Private Vault",
                             url: directUrl,
                             isVideo: file.type.startsWith('video/'),
-                            isPrivate: true,
+                            isPrivate: true, // Private Item Flag
                             comments: []
                         });
                     }
@@ -285,7 +281,6 @@
             }
         }
 
-        // Support direct unlock via pressing Enter key
         document.getElementById("pinInput").addEventListener("keypress", function(event) {
             if (event.key === "Enter") { verifyPin(); }
         });
