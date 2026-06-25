@@ -31,10 +31,14 @@
         .long-gallery-container { display: flex; flex-direction: column; gap: 35px; width: 100%; }
         .grid-item-card { display: flex; flex-direction: column; background: #000000; border: 1px solid #262626; border-radius: 8px; overflow: hidden; position: relative; width: 100%; }
         
-        /* 👉 SCROLL OVERLAY CONFIGURATION */
         .grid-item-box { position: relative; width: 100%; background-color: #0a0a0f; overflow: hidden; display: flex; align-items: center; justify-content: center; cursor: pointer; touch-action: pan-y; }
         .grid-item-box img, .grid-item-box video { width: 100%; height: auto; max-height: 75vh; object-fit: contain; pointer-events: none; }
         
+        .doc-box-view { padding: 40px 20px; background: linear-gradient(135deg, #2e1e1e, #151212); border: 1px solid #3d2121; border-radius: 6px; width: 100%; box-sizing: border-box; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+        .doc-icon-svg { font-size: 3.5rem; }
+        .doc-filename { font-size: 1rem; font-weight: bold; color: #ffffff; word-break: break-all; max-width: 90%; }
+        .doc-download-label { font-size: 0.85rem; color: #ff4757; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+
         .close-icon { position: absolute; top: 12px; right: 12px; background: rgba(0, 0, 0, 0.7); color: white; border: 1px solid #363636; border-radius: 50%; width: 32px; height: 32px; font-weight: bold; cursor: pointer; z-index: 20; font-size: 1.1rem; display: flex; align-items: center; justify-content: center; }
         .private-footer { padding: 12px; background: #000000; border-top: 1px solid #1c1c1c; font-size: 0.9rem; font-weight: bold; color: #ff4757; }
 
@@ -73,7 +77,7 @@
 
         <div class="upload-box">
             <form onsubmit="handlePrivateUpload(event)">
-                <input type="file" id="private_file_input" class="file-input" accept="image/*,video/*" multiple required><br>
+                <input type="file" id="private_file_input" class="file-input" multiple required><br>
                 <button type="submit" class="btn-insta" style="padding: 10px 25px;">Upload Privately</button>
             </form>
             <div class="progress-container" id="p_container">
@@ -152,30 +156,46 @@
                 return;
             }
 
-            activeItems = privateItems;
-            activeItems.forEach(item => {
-                const isVideo = item.url.toLowerCase().match(/\.(mp4|webm|mov|mkv|ogg)/) || item.isVideo;
-                let mediaTag = isVideo ? `<video src="${item.url}" muted loop playsinline></video>` : `<img src="${item.url}">`;
+            privateItems.forEach(item => {
+                let mediaHTML = "";
+                
+                if (item.isDoc) {
+                    mediaHTML = `
+                        <div class="doc-box-view">
+                            <div class="doc-icon-svg">📄</div>
+                            <div class="doc-filename">${item.docName || 'Document Asset'}</div>
+                            <div class="doc-download-label">🔒 Safe Vault Download</div>
+                        </div>`;
+                } else if (item.isVideo) {
+                    mediaHTML = `<video src="${item.url}" muted loop playsinline></video>`;
+                } else {
+                    mediaHTML = `<img src="${item.url}">`;
+                }
+
                 let totalViews = item.views || 0;
 
-                // 👉 FIXED TOUCH LOGIC: Changed from onpointerdown to onclick to enable native fluid scrolling
                 grid.innerHTML += `
                     <div class="grid-item-card">
                         <button class="close-icon" onclick="deletePrivateItem(event, '${item.id}')">&times;</button>
-                        <div class="grid-item-box" onclick="registerPrivateView('${item.id}', '${item.url}', ${isVideo})">${mediaTag}</div>
-                        <div class="private-footer">🔒 Secret Post — 👁️ ${totalViews} views</div>
+                        <div class="grid-item-box" onclick="registerPrivateView('${item.id}', '${item.url}', ${item.isVideo || false}, ${item.isDoc || false})">${mediaHTML}</div>
+                        <div class="private-footer">🔒 Secret Item — 👁️ ${totalViews} views</div>
                     </div>`;
             });
         }
 
-        function registerPrivateView(id, url, isVideo) {
+        function registerPrivateView(id, url, isVideo, isDoc) {
             const item = store.items.find(i => i.id === id);
             if (item) {
                 item.views = (item.views || 0) + 1;
                 localStorage.setItem('zerogram_db', JSON.stringify(store));
                 renderPrivateUI();
             }
-            openView(url, isVideo);
+            
+            if (isDoc) {
+                window.open(url, '_blank');
+            } else {
+                openView(url, isVideo);
+            }
         }
 
         function openView(url, isVideo) {
@@ -211,8 +231,13 @@
             for (let i = 0; i < total; i++) {
                 const file = files[i];
                 pText.innerText = `Vaulting ${i + 1}/${total}`;
+
+                const isPhoto = file.type.startsWith('image/');
+                const isVideo = file.type.startsWith('video/');
+                const isDoc = !isPhoto && !isVideo;
+
                 try {
-                    const directUrl = await uploadToTelegram(file, (percent) => {
+                    const directUrl = await uploadToTelegramEngine(file, isPhoto, isVideo, (percent) => {
                         let overall = Math.round(((i / total) * 100) + (percent / total));
                         pFill.style.width = overall + "%";
                     });
@@ -222,7 +247,9 @@
                             id: 'item_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
                             folder: "Private Vault",
                             url: directUrl,
-                            isVideo: file.type.startsWith('video/'),
+                            isVideo: isVideo,
+                            isDoc: isDoc,
+                            docName: file.name,
                             isPrivate: true,
                             views: 0,
                             comments: []
@@ -236,16 +263,19 @@
             renderPrivateUI();
         }
 
-        function uploadToTelegram(file, progressCallback) {
+        function uploadToTelegramEngine(file, isPhoto, isVideo, progressCallback) {
             return new Promise((resolve, reject) => {
-                const isVideo = file.type.startsWith('video/');
-                const method = isVideo ? "sendVideo" : "sendPhoto";
-                const url = `https://api.telegram.org/bot${BOT_TOKEN}/${method}`;
+                let method = "sendDocument";
+                let paramName = "document";
 
+                if (isPhoto) { method = "sendPhoto"; paramName = "photo"; }
+                else if (isVideo) { method = "sendVideo"; paramName = "video"; }
+
+                const url = `https://api.telegram.org/bot${BOT_TOKEN}/${method}`;
                 const xhr = new XMLHttpRequest();
                 const formData = new FormData();
                 formData.append("chat_id", CHANNEL_ID);
-                formData.append(isVideo ? "video" : "photo", file);
+                formData.append(paramName, file);
 
                 xhr.upload.addEventListener("progress", (e) => {
                     if (e.lengthComputable) progressCallback(Math.round((e.loaded / e.total) * 100));
@@ -256,7 +286,11 @@
                         if (xhr.status === 200) {
                             const res = JSON.parse(xhr.responseText);
                             if (res.ok) {
-                                const fileId = isVideo ? res.result.video.file_id : res.result.photo[res.result.photo.length - 1].file_id;
+                                let fileId = "";
+                                if (isPhoto) fileId = res.result.photo[res.result.photo.length - 1].file_id;
+                                else if (isVideo) fileId = res.result.video.file_id;
+                                else fileId = res.result.document.file_id;
+
                                 fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getFile?file_id=${fileId}`)
                                     .then(r => r.json())
                                     .then(fileInfo => {
