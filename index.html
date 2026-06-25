@@ -38,10 +38,15 @@
         .long-gallery-container { display: flex; flex-direction: column; gap: 35px; width: 100%; }
         .grid-item-card { display: flex; flex-direction: column; background: #000000; border: 1px solid #262626; border-radius: 8px; overflow: hidden; position: relative; width: 100%; }
         
-        /* 👉 SCROLL OVERLAY CONFIGURATION */
         .grid-item-box { position: relative; width: 100%; background-color: #0a0a0f; overflow: hidden; display: flex; align-items: center; justify-content: center; cursor: pointer; touch-action: pan-y; }
         .grid-item-box img, .grid-item-box video { width: 100%; height: auto; max-height: 75vh; object-fit: contain; pointer-events: none; }
         
+        /* 👉 DOCUMENT ASSET STYLE */
+        .doc-box-view { padding: 40px 20px; background: linear-gradient(135deg, #1e1e24, #121215); border: 1px solid #262626; border-radius: 6px; width: 100%; box-sizing: border-box; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+        .doc-icon-svg { font-size: 3.5rem; }
+        .doc-filename { font-size: 1rem; font-weight: bold; color: #ffffff; word-break: break-all; max-width: 90%; }
+        .doc-download-label { font-size: 0.85rem; color: #0095f6; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+
         .close-icon { position: absolute; top: 12px; right: 12px; background: rgba(0, 0, 0, 0.7); color: white; border: 1px solid #363636; border-radius: 50%; width: 32px; height: 32px; font-weight: bold; cursor: pointer; z-index: 20; font-size: 1.1rem; display: flex; align-items: center; justify-content: center; }
         
         .grid-item-footer { padding: 14px; background: #000000; border-top: 1px solid #1c1c1c; }
@@ -67,7 +72,7 @@
                     <h1>zerogram_public</h1>
                     <a href="private.html" class="btn-secondary-insta">🔒 Go to Private Vault</a>
                 </div>
-                <div style="color:#dbdbdb; font-size: 0.85rem; margin-top: 5px;"><span><strong>Long View Scroll</strong> Enabled</span></div>
+                <div style="color:#dbdbdb; font-size: 0.85rem; margin-top: 5px;"><span><strong>Cloud Cloud</strong> (Photos, Videos & Docs)</span></div>
             </div>
         </div>
 
@@ -80,7 +85,7 @@
                         <select id="target_gallery_select"></select>
                     </div>
                     <div class="form-group">
-                        <input type="file" id="insta_file_input" accept="image/*,video/*" multiple required>
+                        <input type="file" id="insta_file_input" multiple required>
                     </div>
                     <button type="submit" class="btn-insta">Upload to Feed</button>
                 </form>
@@ -147,16 +152,29 @@
             }
 
             activeItems.forEach(item => {
-                const isVideo = item.url.toLowerCase().match(/\.(mp4|webm|mov|mkv|ogg)/) || item.isVideo;
-                let mediaTag = isVideo ? `<video src="${item.url}" muted loop playsinline></video>` : `<img src="${item.url}">`;
+                let mediaHTML = "";
+                
+                // 👉 DETECT ASSET TYPE TYPE
+                if (item.isDoc) {
+                    mediaHTML = `
+                        <div class="doc-box-view">
+                            <div class="doc-icon-svg">📄</div>
+                            <div class="doc-filename">${item.docName || 'Document File'}</div>
+                            <div class="doc-download-label">📥 Click to Download Asset</div>
+                        </div>`;
+                } else if (item.isVideo) {
+                    mediaHTML = `<video src="${item.url}" muted loop playsinline></video>`;
+                } else {
+                    mediaHTML = `<img src="${item.url}">`;
+                }
+
                 let commentsHTML = (item.comments || []).map(c => `<div style="margin-bottom:4px;"><strong>@user:</strong> ${c}</div>`).join('');
                 let totalViews = item.views || 0;
 
-                // 👉 FIXED TOUCH LOGIC: Changed from onpointerdown to onclick to enable native fluid scrolling
                 grid.innerHTML += `
                     <div class="grid-item-card">
                         <button class="close-icon" onclick="deleteItem(event, '${item.id}')">&times;</button>
-                        <div class="grid-item-box" onclick="registerViewAndOpen('${item.id}', '${item.url}', ${isVideo})">${mediaTag}</div>
+                        <div class="grid-item-box" onclick="registerViewAndOpen('${item.id}', '${item.url}', ${item.isVideo || false}, ${item.isDoc || false})">${mediaHTML}</div>
                         <div class="grid-item-footer">
                             <div class="stats-bar">
                                 <span class="view-count-tag">👁️ ${totalViews} views</span>
@@ -171,14 +189,20 @@
             });
         }
 
-        function registerViewAndOpen(id, url, isVideo) {
+        function registerViewAndOpen(id, url, isVideo, isDoc) {
             const item = store.items.find(i => i.id === id);
             if (item) {
                 item.views = (item.views || 0) + 1;
                 localStorage.setItem('zerogram_db', JSON.stringify(store));
                 renderUI();
             }
-            openView(url, isVideo);
+            
+            if (isDoc) {
+                // If document, open directly in new window to download
+                window.open(url, '_blank');
+            } else {
+                openView(url, isVideo);
+            }
         }
 
         function openView(url, isVideo) {
@@ -227,9 +251,15 @@
 
             for (let i = 0; i < total; i++) {
                 const file = files[i];
-                pText.innerText = `Uploading ${i + 1}/${total}`;
+                pText.innerText = `Syncing ${i + 1}/${total}`;
+                
+                // Determine file classification type
+                const isPhoto = file.type.startsWith('image/');
+                const isVideo = file.type.startsWith('video/');
+                const isDoc = !isPhoto && !isVideo;
+
                 try {
-                    const directUrl = await uploadToTelegram(file, (percent) => {
+                    const directUrl = await uploadToTelegramEngine(file, isPhoto, isVideo, (percent) => {
                         let overall = Math.round(((i / total) * 100) + (percent / total));
                         pFill.style.width = overall + "%";
                     });
@@ -239,7 +269,9 @@
                             id: 'item_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
                             folder: selectedFolder,
                             url: directUrl,
-                            isVideo: file.type.startsWith('video/'),
+                            isVideo: isVideo,
+                            isDoc: isDoc,
+                            docName: file.name,
                             isPrivate: false,
                             views: 0,
                             comments: []
@@ -254,16 +286,19 @@
             saveToStorage();
         }
 
-        function uploadToTelegram(file, progressCallback) {
+        function uploadToTelegramEngine(file, isPhoto, isVideo, progressCallback) {
             return new Promise((resolve, reject) => {
-                const isVideo = file.type.startsWith('video/');
-                const method = isVideo ? "sendVideo" : "sendPhoto";
-                const url = `https://api.telegram.org/bot${BOT_TOKEN}/${method}`;
+                let method = "sendDocument"; // fallback document endpoint
+                let paramName = "document";
 
+                if (isPhoto) { method = "sendPhoto"; paramName = "photo"; }
+                else if (isVideo) { method = "sendVideo"; paramName = "video"; }
+
+                const url = `https://api.telegram.org/bot${BOT_TOKEN}/${method}`;
                 const xhr = new XMLHttpRequest();
                 const formData = new FormData();
                 formData.append("chat_id", CHANNEL_ID);
-                formData.append(isVideo ? "video" : "photo", file);
+                formData.append(paramName, file);
 
                 xhr.upload.addEventListener("progress", (e) => {
                     if (e.lengthComputable) progressCallback(Math.round((e.loaded / e.total) * 100));
@@ -274,7 +309,11 @@
                         if (xhr.status === 200) {
                             const res = JSON.parse(xhr.responseText);
                             if (res.ok) {
-                                const fileId = isVideo ? res.result.video.file_id : res.result.photo[res.result.photo.length - 1].file_id;
+                                let fileId = "";
+                                if (isPhoto) fileId = res.result.photo[res.result.photo.length - 1].file_id;
+                                else if (isVideo) fileId = res.result.video.file_id;
+                                else fileId = res.result.document.file_id;
+
                                 fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getFile?file_id=${fileId}`)
                                     .then(r => r.json())
                                     .then(fileInfo => {
@@ -291,7 +330,7 @@
 
         function deleteItem(event, id) {
             event.stopPropagation();
-            if (confirm("Delete this post?")) {
+            if (confirm("Delete this asset?")) {
                 store.items = store.items.filter(item => item.id !== id);
                 saveToStorage();
             }
@@ -310,7 +349,7 @@
         }
 
         function wipeLocalDatabase() {
-            if (confirm("Wipe all local mappings?")) {
+            if (confirm("Reset layout mappings?")) {
                 localStorage.removeItem('zerogram_db');
                 store = { folders: ["Main Gallery", "Samsung", "System_E"], activeFolder: "Main Gallery", items: [] };
                 renderUI();
@@ -321,4 +360,3 @@
     </script>
 </body>
 </html>
-
